@@ -75,6 +75,8 @@ function getEnemies(blocks)
     return blocks
 end
 
+local weightMultiplier = 0.2
+
 function getRandomGenome(number)
     local genome = {}
 
@@ -87,10 +89,12 @@ function getRandomGenome(number)
             nodes1[j] = {}
             for k = 0, 13 do
                 nodes1[j][k] = {}
-                nodes1[j][k].weightA = math.random() - 0.5
-                nodes1[j][k].weightB = math.random() * 0.1
-                nodes1[j][k].out = math.floor(math.random(6))
-                nodes1[j][k].value = 0
+                for l = 0, 6 do
+                    nodes1[j][k][l] = {}
+                    nodes1[j][k][l].weightA = (math.random() - 0.5) * weightMultiplier
+                    nodes1[j][k][l].weightB = (math.random() * 0.1) * weightMultiplier
+                    nodes1[j][k][l].value = 0
+                end
             end
         end
         specie.layer1 = nodes1
@@ -121,7 +125,9 @@ function testSpecie(specie, blocks)
     local nodes1 = specie.layer1
     for i = 0, 16 do
         for j = 0, 13 do
-            nodes1[i][j].value = sigmoid(nodes1[i][j].weightA * blocks[i][j].value + nodes1[i][j].weightB)
+            for k = 0, 6 do
+                nodes1[i][j][k].value = sigmoid(nodes1[i][j][k].weightA * blocks[i][j].value + nodes1[i][j][k].weightB)
+            end
         end
     end
 
@@ -129,8 +135,10 @@ function testSpecie(specie, blocks)
     local nodes2 = specie.layer2
     for i = 0, 16 do
         for j = 0, 13 do
-            nodes2[nodes1[i][j].out].value = nodes2[nodes1[i][j].out].value + nodes1[i][j].value
-            nodes2[nodes1[i][j].out].numberToAverage = nodes2[nodes1[i][j].out].numberToAverage + 1
+            for k = 0, 6 do
+                nodes2[k].value = nodes2[k].value + nodes1[i][j][k].value
+                nodes2[k].numberToAverage = nodes2[k].numberToAverage + 1
+            end
         end
     end
     for i = 0, 6 do
@@ -240,7 +248,7 @@ function newGenome(oldGenome)
         mean = mean + oldGenome[i].fitness
     end
 
-    mean = round(mean / numberToBreed)
+    mean = round(mean / numberToBreed)https://www.youtube.com/watch?v=G7POOWGNyLU
 
     if (mean <= lastMean) then
         staleGenerations = staleGenerations + 1
@@ -281,7 +289,7 @@ function newGenome(oldGenome)
 end
 
 function breed(oldGenome)
-    local newGenome = {unpack(oldGenome) }
+    local newGenome = {unpack(oldGenome)}
     for i = numberToBreed + 1, speciesPerGenome do
         local parentA = newGenome[math.floor(math.random() * numberToBreed) + 1]
         local parentB = newGenome[math.floor(math.random() * numberToBreed) + 1]
@@ -296,25 +304,23 @@ function breed(oldGenome)
             for k = 0, 13 do
                 newGenome[i].layer1[j][k] = {}
 
-                if (math.random() > 0.5) then
-                    newGenome[i].layer1[j][k].weightA = parentA.layer1[j][k].weightA
-                    newGenome[i].layer1[j][k].weightB = parentA.layer1[j][k].weightB
-                else
-                    newGenome[i].layer1[j][k].weightA = parentB.layer1[j][k].weightA
-                    newGenome[i].layer1[j][k].weightB = parentB.layer1[j][k].weightB
-                end
+                for l = 0, 6 do
+                    newGenome[i].layer1[j][k][l] = {}
 
-                if (math.random() > 0.5) then
-                    newGenome[i].layer1[j][k].out = parentA.layer1[j][k].out
-                else
-                    newGenome[i].layer1[j][k].out = parentB.layer1[j][k].out
-                end
+                    if (math.random() > 0.5) then
+                        newGenome[i].layer1[j][k][l].weightA = parentA.layer1[j][k][l].weightA
+                        newGenome[i].layer1[j][k][l].weightB = parentA.layer1[j][k][l].weightB
+                    else
+                        newGenome[i].layer1[j][k][l].weightA = parentB.layer1[j][k][l].weightA
+                        newGenome[i].layer1[j][k][l].weightB = parentB.layer1[j][k][l].weightB
+                    end
 
-                newGenome[i].value = 0
+                    newGenome[i].value = 0
 
-                if (math.random() < mutationRate) then
-                    newGenome[i].layer1[j][k].weightA = newGenome[i].layer1[j][k].weightA + ((math.random() * 0.4) - 0.2)
-                    newGenome[i].layer1[j][k].weightB = newGenome[i].layer1[j][k].weightB + ((math.random() * 0.04) - 0.02)
+                    if (math.random() < mutationRate) then
+                        newGenome[i].layer1[j][k][l].weightA = newGenome[i].layer1[j][k][l].weightA + ((math.random() * 0.4) - 0.2)
+                        newGenome[i].layer1[j][k][l].weightB = newGenome[i].layer1[j][k][l].weightB + ((math.random() * 0.04) - 0.02)
+                    end
                 end
             end
         end
@@ -333,9 +339,10 @@ function breed(oldGenome)
     return newGenome
 end
 
-function loadGenome(number)
-    -- TODO make this actually work
+-- TODO make this actually work
 
+--[[
+function loadGenome(number)
     print("Loading File...")
     local filename = "load.gen"
     local file = io.open(filename, "r")
@@ -370,10 +377,10 @@ function loadGenome(number)
         line:read("*line")
     end
     file:close()
-    --]]
     print("File Loaded.")
     return genome
 end
+--]]
 
 function resetVariables()
     oldFitnessNoTime = 0
@@ -396,9 +403,10 @@ function saveGenome(genome, filename)
         file:write("====================\n")
         for j = 0, 16 do
             for k = 0, 13 do
-                file:write(genome[i].layer1[j][k].weightA .. "\n")
-                file:write(genome[i].layer1[j][k].weightB .. "\n")
-                file:write(genome[i].layer1[j][k].out .. "\n")
+                for l = 0, 6 do
+                    file:write(genome[i].layer1[j][k][l].weightA .. "\n")
+                    file:write(genome[i].layer1[j][k][l].weightB .. "\n")
+                end
             end
         end
         file:write("\n\n\n")
